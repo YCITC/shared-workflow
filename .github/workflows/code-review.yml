@@ -1,0 +1,87 @@
+name: Gemini AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main-candidate
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR Diff and Save to File
+        id: get_diff
+        run: |
+          set -eo pipefail
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          DIFF_CONTENT=$(git diff $BASE_SHA $HEAD_SHA)
+
+          if [ -z "$DIFF_CONTENT" ]; then
+            echo "is_empty=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_empty=false" >> $GITHUB_OUTPUT
+                # Get diff excluding test files, lock files, and generated files
+                # Use || [ $? -eq 141 ] to ignore SIGPIPE errors caused by head -n 1000
+                (git diff $BASE_SHA $HEAD_SHA -- \
+                  ':!*.test.*' ':!*.spec.*' ':!*_test.py' ':!test_*.py' \
+                  ':!package-lock.json' ':!yarn.lock' ':!pnpm-lock.yaml' \
+                  ':!*.min.js' ':!*.min.css' ':!*.map' \
+                  | head -n 1000 > pr_diff.txt) || [ $? -eq 141 ]
+              fi
+      - name: Run AI Code Review Script
+        id: gemini_review
+        if: steps.get_diff.outputs.is_empty == 'false'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set -eo pipefail
+          pip install requests
+          output_file=$(mktemp)
+          # Execute the script, teeing its output to both the log and the temp file.
+          # The exit code of the python script is captured via PIPESTATUS, not the exit code of tee.
+          python .github/scripts/review.py 2>&1 | tee "$output_file"
+          exit_code=${PIPESTATUS[0]}
+          # Now, handle the output and exit code
+          output=$(<"$output_file")
+          echo "review_comment<<EOF" >> $GITHUB_OUTPUT
+          echo "$output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          if [ $exit_code -ne 0 ]; then
+            echo "Error: Python script failed with exit code $exit_code"
+            # The output is already visible in the log because of tee, but we can print it again for clarity.
+            echo "Script output was:"
+            echo "$output"
+            exit $exit_code
+          fi
+
+      - name: Post Review Comment to PR
+        if: steps.gemini_review.outputs.review_comment != ''
+        uses: actions/github-script@v7
+        env:
+          # 將 review 內容設定為一個環境變數
+          REVIEW_COMMENT: ${{ steps.gemini_review.outputs.review_comment }}
+        with:
+          script: |
+            // 從環境變數中安全地讀取留言內容
+            const comment = process.env.REVIEW_COMMENT;
+            
+            const review_body = `### 🤖 Gemini AI Code Review\n\n${comment}`;
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: review_body
+            });

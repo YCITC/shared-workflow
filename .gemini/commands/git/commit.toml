@@ -1,0 +1,5 @@
+name="Git Commit"
+description="Initiates the workflow to generate a conventional commit message and perform the commit using the conventional-commit-generator skill."
+prompt="""
+Triggers the "Git Commit" command. This initiates the `conventional-commit-generator` skill workflow to guide you through creating a conventional commit message based on your staged changes. The skill automatically validates the current branch, suggests a commit message following conventional standards, and ensures the inclusion of a ClickUp Task ID (format: CU-xxxxxx).
+"""

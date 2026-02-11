@@ -1,0 +1,5 @@
+name="Create Pull Request"
+description="Initiates the workflow to create a new GitHub Pull Request using the create-pull-request skill."
+prompt="""
+Triggers the "Create Pull Request" command. This initiates the `create-pull-request` skill workflow to guide you through creating a new GitHub Pull Request. The skill automatically fetches the current branch, suggests a PR title, and collects necessary details.
+"""
