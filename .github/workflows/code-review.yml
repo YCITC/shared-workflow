@@ -1,10 +1,20 @@
 name: Gemini AI Code Review
 
 on:
-  pull_request:
-    types: [opened, synchronize]
-    branches:
-      - main-candidate
+  workflow_call:
+    inputs:
+      pull_request_json:
+        required: true
+        type: string
+      repo_owner:
+        required: true
+        type: string
+      repo_name:
+        required: true
+        type: string
+    secrets:
+      GEMINI_API_KEY:
+        required: true
 
 permissions:
   contents: read
@@ -20,12 +30,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Parse Pull Request JSON
+        id: parse_pr
+        run: |
+          echo "pull_request=$(echo '${{ inputs.pull_request_json }}' | jq -c .)" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Get PR Diff and Save to File
         id: get_diff
         run: |
           set -eo pipefail
-          BASE_SHA=${{ github.event.pull_request.base.sha }}
-          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          PR_JSON='${{ steps.parse_pr.outputs.pull_request }}'
+          BASE_SHA=$(echo $PR_JSON | jq -r '.base.sha')
+          HEAD_SHA=$(echo $PR_JSON | jq -r '.head.sha')
+          
+          # Ensure BASE_SHA and HEAD_SHA are not empty
+          if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+            echo "Error: BASE_SHA or HEAD_SHA is empty. Cannot get diff."
+            exit 1
+          fi
+
           DIFF_CONTENT=$(git diff $BASE_SHA $HEAD_SHA)
 
           if [ -z "$DIFF_CONTENT" ]; then
@@ -80,8 +104,8 @@ jobs:
             const review_body = `### 🤖 Gemini AI Code Review\n\n${comment}`;
             
             github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
+              owner: '${{ inputs.repo_owner }}',
+              repo: '${{ inputs.repo_name }}',
+              issue_number: JSON.parse('${{ inputs.pull_request_json }}').number,
               body: review_body
             });

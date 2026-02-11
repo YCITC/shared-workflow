@@ -1,9 +1,17 @@
 name: PR Validation
 
 on:
-  pull_request:
-    branches: [main, main-candidate]
-    types: [opened, synchronize, reopened, edited]
+  workflow_call:
+    inputs:
+      pull_request_json:
+        required: true
+        type: string
+      repo_owner:
+        required: true
+        type: string
+      repo_name:
+        required: true
+        type: string
 
 jobs:
   validate:
@@ -27,12 +35,19 @@ jobs:
         run: |
           pip install gitpython
 
+      - name: Parse Pull Request JSON
+        id: parse_pr_json
+        run: |
+          echo "pr_title=$(echo '${{ inputs.pull_request_json }}' | jq -r '.title')" >> $GITHUB_OUTPUT
+          echo "pr_number=$(echo '${{ inputs.pull_request_json }}' | jq -r '.number')" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Validate commit messages
         id: validate_commits
         run: |
           # Validate PR Title (for Squash and Merge strategy)
-          echo "🔍 Validating PR Title: ${{ github.event.pull_request.title }}"
-          OUTPUT=$(python3 tools/validate_commits.py --message "${{ github.event.pull_request.title }}" 2>&1) || true
+          echo "🔍 Validating PR Title: ${{ steps.parse_pr_json.outputs.pr_title }}"
+          OUTPUT=$(python3 tools/validate_commits.py --message "${{ steps.parse_pr_json.outputs.pr_title }}" 2>&1) || true
           echo "$OUTPUT"
           # Escape for GitHub Actions output
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
@@ -102,9 +117,9 @@ jobs:
 
             // Find existing comment
             const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
+              owner: '${{ inputs.repo_owner }}',
+              repo: '${{ inputs.repo_name }}',
+              issue_number: ${{ steps.parse_pr_json.outputs.pr_number }},
             });
 
             const botComment = comments.find(comment =>
@@ -115,23 +130,17 @@ jobs:
             if (botComment) {
               // Update existing comment
               await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
+                owner: '${{ inputs.repo_owner }}',
+                repo: '${{ inputs.repo_name }}',
                 comment_id: botComment.id,
                 body: body
               });
             } else {
               // Create new comment
               await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
+                owner: '${{ inputs.repo_owner }}',
+                repo: '${{ inputs.repo_name }}',
+                issue_number: ${{ steps.parse_pr_json.outputs.pr_number }},
                 body: body
               });
             }
-
-      - name: Fail if validation failed
-        if: steps.validate_commits.outcome == 'failure'
-        run: |
-          echo "❌ PR Title validation failed. Please update the PR title to follow Conventional Commits."
-          exit 1

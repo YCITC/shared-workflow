@@ -1,27 +1,21 @@
 name: Automated Release
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/**'
-  workflow_dispatch:
+  workflow_call:
     inputs:
       version:
         description: 'Manual version (e.g., 3.8) or leave empty for auto'
         required: false
+        type: string
         default: ''
       bump_type:
         description: 'Auto bump type if version empty'
         required: false
+        type: string
         default: 'auto'
-        type: choice
-        options:
-          - auto
-          - minor
-          - major
+    secrets:
+      RELEASE_TOKEN:
+        required: true
 
 jobs:
   release:
@@ -57,12 +51,12 @@ jobs:
       - name: Bump version
         id: bump_version
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "🎯 Using manual version: ${{ github.event.inputs.version }}"
-            python3 tools/bump_version.py --manual "${{ github.event.inputs.version }}"
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "🎯 Using manual version: ${{ inputs.version }}"
+            python3 tools/bump_version.py --manual "${{ inputs.version }}"
           else
             echo "🤖 Auto-detecting version bump from commits"
-            python3 tools/bump_version.py --type "${{ github.event.inputs.bump_type || 'auto' }}"
+            python3 tools/bump_version.py --type "${{ inputs.bump_type || 'auto' }}"
           fi
 
           NEW_VERSION=$(cat VERSION)
