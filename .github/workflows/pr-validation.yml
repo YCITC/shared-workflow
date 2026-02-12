@@ -3,7 +3,10 @@ name: PR Validation
 on:
   workflow_call:
     inputs:
-      pull_request_json:
+      pull_request_title:
+        required: true
+        type: string
+      pull_request_number:
         required: true
         type: string
       repo_owner:
@@ -38,8 +41,8 @@ jobs:
       - name: Parse Pull Request JSON
         id: parse_pr_json
         run: |
-          echo "pr_title=$(echo '${{ inputs.pull_request_json }}' | jq -r '.title')" >> $GITHUB_OUTPUT
-          echo "pr_number=$(echo '${{ inputs.pull_request_json }}' | jq -r '.number')" >> $GITHUB_OUTPUT
+          echo "pr_title=${{ inputs.pull_request_title }}" >> $GITHUB_OUTPUT
+          echo "pr_number=${{ inputs.pull_request_number }}" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Validate commit messages
