@@ -35,6 +35,11 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Get current version from caller repo
+        id: get_current_version
+        run: |
+          echo "current=$(cat VERSION)" >> $GITHUB_OUTPUT
+
       - name: Checkout reusable workflow repo
         uses: actions/checkout@v4
         with:
@@ -74,9 +79,8 @@ jobs:
       - name: Predict next version
         id: predict_version
         run: |
-          CURRENT_VERSION=$(cat VERSION)
           PREDICTED_VERSION=$(python3 shared-workflow/tools/bump_version.py --dry-run --type auto)
-          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "current=${{ steps.get_current_version.outputs.current }}" >> $GITHUB_OUTPUT
           echo "predicted=$PREDICTED_VERSION" >> $GITHUB_OUTPUT
 
       - name: Comment on PR
