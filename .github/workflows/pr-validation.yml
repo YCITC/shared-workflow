@@ -29,10 +29,18 @@ jobs:
         with:
           fetch-depth: 0
 
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
+      - name: Checkout reusable workflow repo
+        uses: actions/checkout@v4
+        with:
+          repository: YCITC/shared-workflow
+          ref: main
+          path: shared-workflow
 
       - name: Install dependencies
         run: |
@@ -50,7 +58,7 @@ jobs:
         run: |
           # Validate PR Title (for Squash and Merge strategy)
           echo "🔍 Validating PR Title: ${{ steps.parse_pr_json.outputs.pr_title }}"
-          OUTPUT=$(python3 tools/validate_commits.py --message "${{ steps.parse_pr_json.outputs.pr_title }}" 2>&1) || true
+          OUTPUT=$(python3 shared-workflow/tools/validate_commits.py --message "${{ steps.parse_pr_json.outputs.pr_title }}" 2>&1) || true
           echo "$OUTPUT"
           # Escape for GitHub Actions output
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
@@ -67,7 +75,7 @@ jobs:
         id: predict_version
         run: |
           CURRENT_VERSION=$(cat VERSION)
-          PREDICTED_VERSION=$(python3 tools/bump_version.py --dry-run --type auto)
+          PREDICTED_VERSION=$(python3 shared-workflow/tools/bump_version.py --dry-run --type auto)
           echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "predicted=$PREDICTED_VERSION" >> $GITHUB_OUTPUT
 
