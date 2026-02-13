@@ -29,7 +29,6 @@ jobs:
         with:
           fetch-depth: 0
 
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -39,17 +38,21 @@ jobs:
         id: get_current_version
         run: |
           echo "current=$(cat VERSION)" >> $GITHUB_OUTPUT
+          echo "PWD: $(pwd)"
+          tree -L 1
 
       - name: Checkout reusable workflow repo
         uses: actions/checkout@v4
         with:
-          repository: YCITC/shared-workflow
+          repository: YCITC/shared-workflows
           ref: main
           path: shared-workflow
 
       - name: Install dependencies
         run: |
           pip install gitpython
+          echo "PWD: $(pwd)"
+          tree -L 1
 
       - name: Parse Pull Request JSON
         id: parse_pr_json
@@ -61,6 +64,11 @@ jobs:
       - name: Validate commit messages
         id: validate_commits
         run: |
+          echo "--------------------"
+          echo "PWD: $(pwd)"
+          echo "Current Version: ${{ steps.get_current_version.outputs.current }}"
+          echo "--------------------"
+
           # Validate PR Title (for Squash and Merge strategy)
           echo "🔍 Validating PR Title: ${{ steps.parse_pr_json.outputs.pr_title }}"
           OUTPUT=$(python3 shared-workflow/tools/validate_commits.py --message "${{ steps.parse_pr_json.outputs.pr_title }}" 2>&1) || true
@@ -79,7 +87,7 @@ jobs:
       - name: Predict next version
         id: predict_version
         run: |
-          PREDICTED_VERSION=$(python3 shared-workflow/tools/bump_version.py --dry-run --type auto)
+          PREDICTED_VERSION=$(python3 shared-workflow/tools/bump_version.py --dry-run --type auto --version-file "${{ github.workspace }}/VERSION")
           echo "current=${{ steps.get_current_version.outputs.current }}" >> $GITHUB_OUTPUT
           echo "predicted=$PREDICTED_VERSION" >> $GITHUB_OUTPUT
 

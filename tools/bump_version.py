@@ -14,8 +14,6 @@ from pathlib import Path
 from datetime import datetime
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-VERSION_FILE = PROJECT_ROOT / "VERSION"
-CHANGELOG_FILE = PROJECT_ROOT / "CHANGELOG.md"
 
 
 def info(message):
@@ -106,13 +104,13 @@ def analyze_commits(commits):
         return 'none'
 
 
-def read_current_version():
+def read_current_version(version_file_path):
     """Read current version from VERSION file"""
-    if not VERSION_FILE.exists():
-        info(f"❌ ERROR: VERSION file not found at {VERSION_FILE}")
+    if not version_file_path.exists():
+        info(f"❌ ERROR: VERSION file not found at {version_file_path}")
         sys.exit(1)
 
-    version = VERSION_FILE.read_text().strip()
+    version = version_file_path.read_text().strip()
 
     if not re.match(r'^\d+\.\d+$', version):
         info(f"❌ ERROR: Invalid version format '{version}'")
@@ -146,19 +144,19 @@ def bump_version(current_version, bump_type):
     return f"{major}.{minor}"
 
 
-def write_version(new_version):
+def write_version(new_version, version_file_path):
     """Write new version to VERSION file"""
-    VERSION_FILE.write_text(f"{new_version}\n")
+    version_file_path.write_text(f"{new_version}\n")
     info(f"✅ Updated VERSION file to {new_version}")
 
 
-def update_changelog(new_version, bump_type):
+def update_changelog(new_version, bump_type, changelog_file_path):
     """Add new version entry to CHANGELOG.md"""
-    if not CHANGELOG_FILE.exists():
+    if not changelog_file_path.exists():
         info("⚠️  CHANGELOG.md not found, skipping update")
         return
 
-    changelog_content = CHANGELOG_FILE.read_text()
+    changelog_content = changelog_file_path.read_text()
 
     # Check if version already exists
     if f"## [{new_version}]" in changelog_content:
@@ -191,13 +189,13 @@ def update_changelog(new_version, bump_type):
 
     if insert_index:
         lines.insert(insert_index, new_entry)
-        CHANGELOG_FILE.write_text('\n'.join(lines))
+        changelog_file_path.write_text('\n'.join(lines))
         info(f"✅ Updated CHANGELOG.md with version {new_version}")
     else:
         info("⚠️  Could not find insertion point in CHANGELOG.md")
 
 
-def run_version_sync():
+def run_version_sync(version_file_path):
     """Run the version_sync.py script"""
     version_sync_script = PROJECT_ROOT / "tools" / "version_sync.py"
 
@@ -206,8 +204,12 @@ def run_version_sync():
         return
 
     try:
+        command = ["python3", str(version_sync_script)]
+        # Assuming version_sync.py supports a --version-file argument
+        command.extend(["--version-file", str(version_file_path)])
+
         result = subprocess.run(
-            ["python3", str(version_sync_script)],
+            command,
             cwd=PROJECT_ROOT,
             capture_output=True,
             text=True,
@@ -241,10 +243,25 @@ def main():
         action='store_true',
         help='Show what would happen without making changes'
     )
+    parser.add_argument(
+        '--version-file',
+        type=str,
+        default=str(PROJECT_ROOT / "VERSION"),
+        help=f'Path to the VERSION file (default: {PROJECT_ROOT / "VERSION"})'
+    )
+    parser.add_argument(
+        '--changelog-file',
+        type=str,
+        default=str(PROJECT_ROOT / "CHANGELOG.md"),
+        help=f'Path to the CHANGELOG.md file (default: {PROJECT_ROOT / "CHANGELOG.md"})'
+    )
 
     args = parser.parse_args()
 
-    current_version = read_current_version()
+    version_file_path = Path(args.version_file)
+    changelog_file_path = Path(args.changelog_file)
+
+    current_version = read_current_version(version_file_path)
     info(f"📌 Current version: {current_version}")
 
     if args.manual:
@@ -292,9 +309,9 @@ def main():
         sys.exit(0)
 
     # Make changes
-    write_version(new_version)
-    update_changelog(new_version, bump_type)
-    run_version_sync()
+    write_version(new_version, version_file_path)
+    update_changelog(new_version, bump_type, changelog_file_path)
+    run_version_sync(version_file_path)
 
     info(f"\n{'='*60}")
     info(f"✅ Version bumped successfully!")

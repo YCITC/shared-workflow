@@ -23,7 +23,6 @@ from pathlib import Path
 
 # Project root directory
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
-VERSION_FILE = PROJECT_ROOT / "VERSION"
 
 # Target files
 PYTHON_INIT = PROJECT_ROOT / "src" / "__init__.py"
@@ -61,13 +60,13 @@ def get_git_branch():
         return "unknown"
 
 
-def read_version():
+def read_version(version_file_path):
     """Read version from VERSION file"""
-    if not VERSION_FILE.exists():
-        print(f"❌ ERROR: VERSION file not found at {VERSION_FILE}")
+    if not version_file_path.exists():
+        print(f"❌ ERROR: VERSION file not found at {version_file_path}")
         sys.exit(1)
 
-    version = VERSION_FILE.read_text().strip()
+    version = version_file_path.read_text().strip()
 
     # Validate format: X.Y (simple two-part versioning)
     if not re.match(r'^\d+\.\d+$', version):
@@ -193,12 +192,31 @@ def main():
     # Check for validate-only flag
     validate_mode = '--validate-only' in sys.argv
 
+    parser = argparse.ArgumentParser(
+        description='Version Synchronization Script for MAVSDK Drone Show'
+    )
+    parser.add_argument(
+        '--validate-only',
+        action='store_true',
+        help='Only validate version format without making changes'
+    )
+    parser.add_argument(
+        '--version-file',
+        type=str,
+        default=str(PROJECT_ROOT / "VERSION"),
+        help=f'Path to the VERSION file (default: {PROJECT_ROOT / "VERSION"})'
+    )
+
+    args = parser.parse_args()
+
+    version_file_path = Path(args.version_file)
+
     # Read version
-    version = read_version()
+    version = read_version(version_file_path)
     print(f"📌 Current version: {version}")
     print()
 
-    if validate_mode:
+    if args.validate_only:
         validate_only(version)
         return
 
