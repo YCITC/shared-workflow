@@ -15,6 +15,9 @@ on:
       repo_name:
         required: true
         type: string
+    secrets:
+      token:
+        required: true
 
 jobs:
   validate:
@@ -47,6 +50,7 @@ jobs:
           repository: YCITC/shared-workflows
           ref: main
           path: shared-workflow
+          token: ${{ secrets.token }}
 
       - name: Install dependencies
         run: |
