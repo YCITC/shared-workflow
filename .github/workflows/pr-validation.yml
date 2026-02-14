@@ -44,7 +44,7 @@ jobs:
       - name: Checkout reusable workflow repo
         uses: actions/checkout@v4
         with:
-          repository: YCITC/shared-workflows
+          repository: YCITC/shared-workflow
           ref: main
           path: shared-workflow
 
