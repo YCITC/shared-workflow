@@ -225,7 +225,7 @@ def run_version_sync(version_file_path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Intelligent version bumper for MAVSDK Drone Show'
+        description='Intelligent version bumper'
     )
     parser.add_argument(
         '--type',

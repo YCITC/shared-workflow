@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Commit message validator for MAVSDK Drone Show
+Commit message validator
 
 Validates that commits follow Conventional Commits standard.
 """
